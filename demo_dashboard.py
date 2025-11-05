@@ -1,7 +1,7 @@
 import streamlit as st, pandas as pd, plotly.express as px, requests
 
 # paste your backend URL after Render deployment below
-BACKEND_URL = "https://your-backend.onrender.com"
+BACKEND_URL = "https://ai-erp-demo-1.onrender.com"
 
 st.set_page_config(page_title="AI ERP Demo", layout="wide")
 st.title("🧠 AI ERP Intelligence Dashboard")
