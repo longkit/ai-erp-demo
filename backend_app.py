@@ -54,4 +54,4 @@ def churn(n_customers: int = 200):
 
 @app.get("/status")
 def status():
-    return {"status": "ok", "models": ["Prophet forecast", "Logistic Regression churn"]}
+    return {"status": "ok", "models": ["Prophet forecast", "Logistic Regression churn"]} 
