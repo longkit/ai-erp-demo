@@ -9,3 +9,6 @@ xgboost
 joblib
 python-multipart
 plotly
+cmake
+pyarrow
+pyproject
