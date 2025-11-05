@@ -33,3 +33,4 @@ with col2:
         st.metric("High-Risk Customers", data["high_risk_customers"])
     except Exception as e:
         st.error(f"Churn error: {e}")
+st.caption("Swagger UI → " + https://ai-erp-demo-1.onrender.com + "/docs")
