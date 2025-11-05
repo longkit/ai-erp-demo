@@ -49,8 +49,14 @@ async def evaluate_forecast(test_file: UploadFile = File(...)):
     try:
         df = pd.read_csv(test_file.file)
         model = joblib.load(FORECAST_MODEL_PATH)
-        forecast = model.predict(df[['ds']])
-        merged = forecast[['ds','yhat']].merge(df, on='ds', how='inner')
+        # Ensure both are datetime
+df['ds'] = pd.to_datetime(df['ds'])
+forecast = model.predict(df[['ds']])
+forecast['ds'] = pd.to_datetime(forecast['ds'])
+
+# Merge safely
+merged = pd.merge(forecast[['ds','yhat']], df, on='ds', how='inner')
+
         mae = mean_absolute_error(merged['y'], merged['yhat'])
         rmse = mean_squared_error(merged['y'], merged['yhat'], squared=False)
         return {"✅ Evaluation Results": {"MAE": mae, "RMSE": rmse, "n_test": len(merged)}}
