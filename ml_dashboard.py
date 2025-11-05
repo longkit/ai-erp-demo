@@ -7,7 +7,7 @@ import io
 # =======================================================
 # CONFIG
 # =======================================================
-BACKEND_URL = "https://your-backend.onrender.com"  # 👈 replace this with your real Render backend URL
+BACKEND_URL = "https://ai-erp-demo-1.onrender.com"  # 👈 replace this with your real Render backend URL
 
 st.set_page_config(page_title="AI ERP ML Dashboard", layout="wide")
 st.title("🤖 AI ERP ML Dashboard")
