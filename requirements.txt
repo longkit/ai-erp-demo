@@ -7,3 +7,5 @@ scikit-learn
 prophet
 xgboost
 joblib
+python-multipart
+plotly
