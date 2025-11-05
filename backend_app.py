@@ -1,43 +1,51 @@
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
-import pandas as pd, numpy as np, joblib, os, io
+from fastapi.middleware.cors import CORSMiddleware
+import pandas as pd, numpy as np, joblib, os
 from prophet import Prophet
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, accuracy_score, roc_auc_score
 from xgboost import XGBClassifier
+from sklearn.metrics import (
+    mean_absolute_error, mean_squared_error,
+    accuracy_score, roc_auc_score
+)
 
-app = FastAPI(title="AI ERP Intelligence API")
+app = FastAPI(title="AI ERP Intelligence API 🚀",
+              description="Upload your train/test data and get ML-based forecasting & churn predictions.",
+              version="2.0")
 
-# ------------------------------
-#   File paths for saved models
-# ------------------------------
+# Allow API access from any origin (optional)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], allow_credentials=True,
+    allow_methods=["*"], allow_headers=["*"],
+)
+
+# Paths for saved models
 FORECAST_MODEL_PATH = "forecast_model.joblib"
 CHURN_MODEL_PATH = "churn_model.joblib"
 
 # ============================================================
 # 🏪 SALES FORECASTING MODULE
 # ============================================================
-@app.post("/train_forecast")
+@app.post("/train_forecast", tags=["Sales Forecasting"])
 async def train_forecast(train_file: UploadFile = File(...)):
     """Train Prophet model on uploaded training CSV (columns: ds, y)."""
     try:
         df = pd.read_csv(train_file.file)
         if not {'ds','y'}.issubset(df.columns):
             return JSONResponse(content={"error": "CSV must contain columns 'ds' and 'y'."}, status_code=400)
-
         model = Prophet(daily_seasonality=True)
         model.fit(df)
         joblib.dump(model, FORECAST_MODEL_PATH)
-        return {"message": "Forecast model trained.", "records": len(df)}
+        return {"message": "✅ Forecast model trained successfully.", "records": len(df)}
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/evaluate_forecast")
+@app.post("/evaluate_forecast", tags=["Sales Forecasting"])
 async def evaluate_forecast(test_file: UploadFile = File(...)):
-    """Evaluate saved Prophet model on test CSV."""
+    """Evaluate Prophet model on test CSV (columns: ds, y)."""
     if not os.path.exists(FORECAST_MODEL_PATH):
-        return {"error": "No trained forecast model found."}
-
+        return {"error": "❌ No trained forecast model found."}
     try:
         df = pd.read_csv(test_file.file)
         model = joblib.load(FORECAST_MODEL_PATH)
@@ -45,16 +53,15 @@ async def evaluate_forecast(test_file: UploadFile = File(...)):
         merged = forecast[['ds','yhat']].merge(df, on='ds', how='inner')
         mae = mean_absolute_error(merged['y'], merged['yhat'])
         rmse = mean_squared_error(merged['y'], merged['yhat'], squared=False)
-        return {"mae": mae, "rmse": rmse, "n_test": len(merged)}
+        return {"✅ Evaluation Results": {"MAE": mae, "RMSE": rmse, "n_test": len(merged)}}
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/predict_forecast")
+@app.post("/predict_forecast", tags=["Sales Forecasting"])
 async def predict_forecast(days: int = Form(7)):
-    """Forecast N future days."""
+    """Predict N future days using trained Prophet model."""
     if not os.path.exists(FORECAST_MODEL_PATH):
-        return {"error": "No trained forecast model found."}
-
+        return {"error": "❌ No trained forecast model found."}
     try:
         model = joblib.load(FORECAST_MODEL_PATH)
         future = model.make_future_dataframe(periods=days)
@@ -66,50 +73,47 @@ async def predict_forecast(days: int = Form(7)):
 # ============================================================
 # 👥 CHURN PREDICTION MODULE
 # ============================================================
-@app.post("/train_churn")
+@app.post("/train_churn", tags=["Customer Churn"])
 async def train_churn(train_file: UploadFile = File(...)):
-    """Train churn model on uploaded dataset with a 'churn' column."""
+    """Train churn model on CSV with a 'churn' column (0/1)."""
     try:
         df = pd.read_csv(train_file.file)
         if 'churn' not in df.columns:
             return JSONResponse(content={"error": "CSV must contain a 'churn' column."}, status_code=400)
-
         X = df.drop(columns=['churn'])
         y = df['churn']
         model = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
         model.fit(X, y)
         joblib.dump(model, CHURN_MODEL_PATH)
-        return {"message": "Churn model trained.", "records": len(df)}
+        return {"message": "✅ Churn model trained successfully.", "records": len(df)}
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/evaluate_churn")
+@app.post("/evaluate_churn", tags=["Customer Churn"])
 async def evaluate_churn(test_file: UploadFile = File(...)):
-    """Evaluate churn model accuracy and AUC."""
+    """Evaluate churn model on test CSV with 'churn' column."""
     if not os.path.exists(CHURN_MODEL_PATH):
-        return {"error": "No trained churn model found."}
+        return {"error": "❌ No trained churn model found."}
     try:
         df = pd.read_csv(test_file.file)
         if 'churn' not in df.columns:
-            return {"error": "Test CSV must contain 'churn' column."}
-
+            return {"error": "CSV must contain 'churn' column."}
         X = df.drop(columns=['churn'])
         y = df['churn']
         model = joblib.load(CHURN_MODEL_PATH)
         preds = model.predict(X)
         probs = model.predict_proba(X)[:, 1]
-
         acc = accuracy_score(y, preds)
         auc = roc_auc_score(y, probs)
-        return {"accuracy": acc, "auc": auc, "n_test": len(df)}
+        return {"✅ Evaluation Results": {"Accuracy": acc, "AUC": auc, "n_test": len(df)}}
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/predict_churn")
+@app.post("/predict_churn", tags=["Customer Churn"])
 async def predict_churn(test_file: UploadFile = File(...)):
-    """Predict churn probabilities for uploaded CSV without labels."""
+    """Predict churn probability for unlabeled customers."""
     if not os.path.exists(CHURN_MODEL_PATH):
-        return {"error": "No trained churn model found."}
+        return {"error": "❌ No trained churn model found."}
     try:
         df = pd.read_csv(test_file.file)
         model = joblib.load(CHURN_MODEL_PATH)
@@ -119,12 +123,15 @@ async def predict_churn(test_file: UploadFile = File(...)):
     except Exception as e:
         return {"error": str(e)}
 
-@app.get("/status")
+# ============================================================
+# 🔍 HEALTH CHECK
+# ============================================================
+@app.get("/status", tags=["System"])
 def status():
-    """Quick API health check."""
+    """Check API health and model availability."""
     return {
-        "status": "ok",
-        "available_models": {
+        "status": "✅ OK",
+        "models": {
             "forecast": os.path.exists(FORECAST_MODEL_PATH),
             "churn": os.path.exists(CHURN_MODEL_PATH)
         }
