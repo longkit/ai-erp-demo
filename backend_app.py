@@ -41,27 +41,37 @@ async def train_forecast(train_file: UploadFile = File(...)):
     except Exception as e:
         return {"error": str(e)}
 
-@app.post("/evaluate_forecast", tags=["Sales Forecasting"])
+@app.post("/evaluate_forecast")
 async def evaluate_forecast(test_file: UploadFile = File(...)):
-    """Evaluate Prophet model on test CSV (columns: ds, y)."""
-    if not os.path.exists(FORECAST_MODEL_PATH):
-        return {"error": "❌ No trained forecast model found."}
-   try:
-    df['ds'] = pd.to_datetime(df['ds'])
-except Exception as e:
-    return {"error": f"Failed to parse 'ds' column as dates: {e}"}
+    import pandas as pd
+    import numpy as np
+    import joblib
 
-forecast = model.predict(df[['ds']])
-forecast['ds'] = pd.to_datetime(forecast['ds'])
+    try:
+        model = joblib.load("forecast_model.joblib")
+    except Exception as e:
+        return {"error": f"No trained model found or failed to load: {e}"}
 
-# Merge safely
-merged = pd.merge(forecast[['ds', 'yhat']], df, on='ds', how='inner')
-mae = np.mean(np.abs(merged['yhat'] - merged['y']))
-rmse = np.sqrt(np.mean((merged['yhat'] - merged['y'])**2))
-return {"✅ Evaluation Results": {"MAE": mae, "RMSE": rmse, "n_test": len(merged)}}
+    try:
+        df = pd.read_csv(test_file.file)
+        df['ds'] = pd.to_datetime(df['ds'])
+        df['y'] = df['y'].astype(float)
+    except Exception as e:
+        return {"error": f"Failed to read or parse CSV: {e}"}
+
+    try:
+        forecast = model.predict(df[['ds']])
+        forecast['ds'] = pd.to_datetime(forecast['ds'])
+
+        merged = pd.merge(forecast[['ds', 'yhat']], df, on='ds', how='inner')
+        mae = np.mean(np.abs(merged['yhat'] - merged['y']))
+        rmse = np.sqrt(np.mean((merged['yhat'] - merged['y'])**2))
+
+        return {"✅ Evaluation Results": {"MAE": mae, "RMSE": rmse, "n_test": len(merged)}}
 
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Evaluation failed: {e}"}
+
 
 @app.post("/predict_forecast", tags=["Sales Forecasting"])
 async def predict_forecast(days: int = Form(7)):
