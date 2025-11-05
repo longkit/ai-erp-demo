@@ -104,3 +104,4 @@ elif module == "Customer Churn":
                 st.plotly_chart(fig, use_container_width=True)
         else:
             st.error("Please upload a CSV for prediction.")
+st.caption("Swagger UI → " + BACKEND_URL + "/docs")
