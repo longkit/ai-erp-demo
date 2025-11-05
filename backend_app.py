@@ -46,20 +46,20 @@ async def evaluate_forecast(test_file: UploadFile = File(...)):
     """Evaluate Prophet model on test CSV (columns: ds, y)."""
     if not os.path.exists(FORECAST_MODEL_PATH):
         return {"error": "❌ No trained forecast model found."}
-    try:
-        df = pd.read_csv(test_file.file)
-        model = joblib.load(FORECAST_MODEL_PATH)
-        # Ensure both are datetime
-df['ds'] = pd.to_datetime(df['ds'])
+   try:
+    df['ds'] = pd.to_datetime(df['ds'])
+except Exception as e:
+    return {"error": f"Failed to parse 'ds' column as dates: {e}"}
+
 forecast = model.predict(df[['ds']])
 forecast['ds'] = pd.to_datetime(forecast['ds'])
 
 # Merge safely
-merged = pd.merge(forecast[['ds','yhat']], df, on='ds', how='inner')
+merged = pd.merge(forecast[['ds', 'yhat']], df, on='ds', how='inner')
+mae = np.mean(np.abs(merged['yhat'] - merged['y']))
+rmse = np.sqrt(np.mean((merged['yhat'] - merged['y'])**2))
+return {"✅ Evaluation Results": {"MAE": mae, "RMSE": rmse, "n_test": len(merged)}}
 
-        mae = mean_absolute_error(merged['y'], merged['yhat'])
-        rmse = mean_squared_error(merged['y'], merged['yhat'], squared=False)
-        return {"✅ Evaluation Results": {"MAE": mae, "RMSE": rmse, "n_test": len(merged)}}
     except Exception as e:
         return {"error": str(e)}
 
