@@ -4,40 +4,42 @@ import plotly.express as px
 import requests
 import io
 
-# ========================
+# =======================================================
 # CONFIG
-# ========================
-BACKEND_URL = "https://your-backend.onrender.com"  # 👈 replace this
+# =======================================================
+BACKEND_URL = "https://your-backend.onrender.com"  # 👈 replace this with your real Render backend URL
 
 st.set_page_config(page_title="AI ERP ML Dashboard", layout="wide")
 st.title("🤖 AI ERP ML Dashboard")
+st.caption("Train, evaluate, and visualize ML models for your ERP system.")
 
 st.sidebar.title("⚙️ Settings")
 module = st.sidebar.radio("Select Module", ["Sales Forecasting", "Customer Churn"])
-
 st.markdown("---")
 
-# ========================
+# =======================================================
 # FORECASTING SECTION
-# ========================
+# =======================================================
 if module == "Sales Forecasting":
     st.header("🏪 Sales Forecasting")
 
-    train_file = st.file_uploader("Upload Training CSV (columns: ds, y)", type=["csv"], key="train_forecast")
-    test_file = st.file_uploader("Upload Test CSV (columns: ds, y)", type=["csv"], key="test_forecast")
+    train_file = st.file_uploader("📂 Upload Training CSV (columns: ds, y)", type=["csv"], key="train_forecast")
+    test_file = st.file_uploader("📂 Upload Test CSV (columns: ds, y)", type=["csv"], key="test_forecast")
 
     col1, col2, col3 = st.columns(3)
 
     if col1.button("🚀 Train Model"):
         if train_file:
-            res = requests.post(f"{BACKEND_URL}/train_forecast", files={"train_file": train_file.getvalue()})
+            files = {"train_file": train_file.getvalue()}
+            res = requests.post(f"{BACKEND_URL}/train_forecast", files=files)
             st.success(res.json())
         else:
             st.error("Please upload a training CSV first.")
 
     if col2.button("📊 Evaluate Model"):
         if test_file:
-            res = requests.post(f"{BACKEND_URL}/evaluate_forecast", files={"test_file": test_file.getvalue()})
+            files = {"test_file": test_file.getvalue()}
+            res = requests.post(f"{BACKEND_URL}/evaluate_forecast", files=files)
             result = res.json()
             st.json(result)
             if "✅ Evaluation Results" in result:
@@ -49,34 +51,38 @@ if module == "Sales Forecasting":
 
     if col3.button("🔮 Predict Next 14 Days"):
         res = requests.post(f"{BACKEND_URL}/predict_forecast", data={"days": 14})
-        df_pred = pd.DataFrame(res.json())
-        if not df_pred.empty:
+        try:
+            df_pred = pd.DataFrame(res.json())
             st.subheader("📈 Forecast Plot")
             fig = px.line(df_pred, x="ds", y="yhat", markers=True, title="14-Day Forecast")
             st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Prediction error: {e}")
 
-# ========================
+# =======================================================
 # CHURN SECTION
-# ========================
+# =======================================================
 elif module == "Customer Churn":
     st.header("👥 Customer Churn Prediction")
 
-    train_file = st.file_uploader("Upload Training CSV (features + churn)", type=["csv"], key="train_churn")
-    test_file = st.file_uploader("Upload Test CSV (features + churn)", type=["csv"], key="test_churn")
-    predict_file = st.file_uploader("Upload Prediction CSV (features only)", type=["csv"], key="predict_churn")
+    train_file = st.file_uploader("📂 Upload Training CSV (features + churn)", type=["csv"], key="train_churn")
+    test_file = st.file_uploader("📂 Upload Test CSV (features + churn)", type=["csv"], key="test_churn")
+    predict_file = st.file_uploader("📂 Upload Prediction CSV (features only)", type=["csv"], key="predict_churn")
 
     col1, col2, col3 = st.columns(3)
 
     if col1.button("🚀 Train Model"):
         if train_file:
-            res = requests.post(f"{BACKEND_URL}/train_churn", files={"train_file": train_file.getvalue()})
+            files = {"train_file": train_file.getvalue()}
+            res = requests.post(f"{BACKEND_URL}/train_churn", files=files)
             st.success(res.json())
         else:
             st.error("Please upload a training CSV.")
 
     if col2.button("📊 Evaluate Model"):
         if test_file:
-            res = requests.post(f"{BACKEND_URL}/evaluate_churn", files={"test_file": test_file.getvalue()})
+            files = {"test_file": test_file.getvalue()}
+            res = requests.post(f"{BACKEND_URL}/evaluate_churn", files=files)
             result = res.json()
             st.json(result)
             if "✅ Evaluation Results" in result:
@@ -88,7 +94,8 @@ elif module == "Customer Churn":
 
     if col3.button("🔮 Predict Churn"):
         if predict_file:
-            res = requests.post(f"{BACKEND_URL}/predict_churn", files={"test_file": predict_file.getvalue()})
+            files = {"test_file": predict_file.getvalue()}
+            res = requests.post(f"{BACKEND_URL}/predict_churn", files=files)
             df = pd.DataFrame(res.json())
             st.subheader("Predicted Churn Probabilities")
             st.dataframe(df.head())
