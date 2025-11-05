@@ -1,9 +1,10 @@
 fastapi
 uvicorn
 pydantic
-scikit-learn
-numpy
 pandas
+numpy
+scikit-learn
+prophet
+xgboost
 plotly
-streamlit
 requests
